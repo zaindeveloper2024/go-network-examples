@@ -61,6 +61,7 @@ func receiveMessages(conn net.Conn) {
 			fmt.Println("Connection closed by server")
 			os.Exit(0)
 		}
+
 		fmt.Printf("\nReceived: %+v\n", msg)
 		fmt.Print("Enter message (or 'quit' to exit): ")
 	}

@@ -53,14 +53,13 @@ func (s *Server) handleClient(conn net.Conn) {
 		}
 	}()
 
-	// Client
 	s.clientsMux.Lock()
 	s.clients[conn] = true
 	s.clientsMux.Unlock()
 
 	clientAddr := conn.RemoteAddr().String()
-	log.Printf("Accepted connection from %s\n", clientAddr)
 
+	log.Printf("Accepted connection from %s\n", clientAddr)
 	defer func() {
 		s.clientsMux.Lock()
 		delete(s.clients, conn)

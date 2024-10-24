@@ -15,17 +15,15 @@ func main() {
 
 	listener, err := net.Listen("tcp", serverAddr)
 	if err != nil {
-		fmt.Println("Error listening:", err)
-		return
+		log.Fatalf("Error listening: %v\n", err)
 	}
 	defer listener.Close()
 
 	fmt.Printf("Server is listening on %s\n", serverAddr)
-
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			fmt.Println("Error accepting:", err)
+			log.Printf("Error accepting: %v\n", err)
 			continue
 		}
 		go handleClient(conn)
@@ -56,18 +54,18 @@ func handleClient(conn net.Conn) {
 			return
 		}
 
-		message, err := reader.ReadString('\n')
+		msg, err := reader.ReadString('\n')
 		if err != nil {
 			handleReadError(err, clientAddr)
 			return
 		}
 
-		if len(message) > maxMsgSize {
+		if len(msg) > maxMsgSize {
 			log.Printf("Message too big from %s\n", clientAddr)
 			return
 		}
 
-		response := processMessage(message)
+		response := processMessage(msg)
 
 		if err := conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
 			log.Printf("Error setting write deadline for %s: %v\n", clientAddr, err)
@@ -88,15 +86,15 @@ func handleReadError(err error, clientAddr string) error {
 		log.Printf("Client %s disconnected normally\n", clientAddr)
 		return err
 	case errors.Is(err, io.ErrUnexpectedEOF):
-		return fmt.Errorf("Unexpected EOF from %s", clientAddr)
+		return fmt.Errorf("unexpected EOF from %s", clientAddr)
 	default:
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return fmt.Errorf("Connection timeout from %s", clientAddr)
+			return fmt.Errorf("connection timeout from %s", clientAddr)
 		}
-		return fmt.Errorf("Error reading from %s: %v", clientAddr, err)
+		return fmt.Errorf("error reading from %s: %v", clientAddr, err)
 	}
 }
 
-func processMessage(message string) string {
-	return fmt.Sprintf("Message received: %s\n", message)
+func processMessage(msg string) string {
+	return fmt.Sprintf("Message received: %s\n", msg)
 }
