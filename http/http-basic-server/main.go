@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 type Response struct {
@@ -64,18 +62,18 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func logMiddleware(next http.Handler) http.Handler {
+func logMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 		log.Printf("Started %s %s", r.Method, r.URL.Path)
 
-		next.ServeHTTP(w, r)
+		next(w, r)
 
 		log.Printf("Completed %s in %v", r.URL.Path, time.Since(startTime))
 	})
 }
 
-func recoverMiddleware(next http.Handler) http.Handler {
+func recoverMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -90,7 +88,7 @@ func recoverMiddleware(next http.Handler) http.Handler {
 				})
 			}
 		}()
-		next.ServeHTTP(w, r)
+		next(w, r)
 	})
 }
 
@@ -110,19 +108,13 @@ func getServerConfig() ServerConfig {
 func main() {
 	config := getServerConfig()
 
-	router := mux.NewRouter()
-
-	router.Use(logMiddleware)
-	router.Use(recoverMiddleware)
-
-	router.HandleFunc("/", helloHandler)
-	router.HandleFunc("/health", healthHandler)
-	router.HandleFunc("/panic", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", logMiddleware(helloHandler))
+	http.HandleFunc("/health", logMiddleware(healthHandler))
+	http.HandleFunc("/panic", logMiddleware(recoverMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		panic("something went wrong")
-	})
+	})))
 
 	server := &http.Server{
-		Handler:      router,
 		Addr:         config.Port,
 		ReadTimeout:  config.ReadTimeout,
 		WriteTimeout: config.WriteTimeout,
