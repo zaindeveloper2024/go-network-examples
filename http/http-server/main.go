@@ -110,6 +110,7 @@ func getServerConfig() ServerConfig {
 func main() {
 	config := getServerConfig()
 
+	// mux router
 	router := mux.NewRouter()
 
 	router.Use(logMiddleware)

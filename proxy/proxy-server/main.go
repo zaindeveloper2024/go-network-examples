@@ -18,7 +18,7 @@ type ProxyServer struct {
 func NewProxyServer() *ProxyServer {
 	return &ProxyServer{
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 15 * time.Second,
 		},
 	}
 }
@@ -84,8 +84,8 @@ func main() {
 	server := &http.Server{
 		Addr:         ":8080",
 		Handler:      proxy,
-		ReadTimeout:  1 * time.Minute,
-		WriteTimeout: 1 * time.Minute,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
 	log.Printf("Starting proxy server on %s", server.Addr)
