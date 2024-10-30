@@ -7,25 +7,40 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"time"
 )
 
+// go run .
+// go run . localhost:9090
 func main() {
 	serverAddr := "localhost:8080"
+	if len(os.Args) > 1 {
+		serverAddr = os.Args[1]
+	}
 
+	err := serverRun(serverAddr)
+	if err != nil {
+		log.Fatalf("Error running server: %v\n", err)
+	}
+}
+
+func serverRun(serverAddr string) error {
 	listener, err := net.Listen("tcp", serverAddr)
 	if err != nil {
-		log.Fatalf("Error listening: %v\n", err)
+		return fmt.Errorf("error listening: %w", err)
 	}
 	defer listener.Close()
 
-	fmt.Printf("Server is listening on %s\n", serverAddr)
+	log.Printf("Server is listening on %s\n", serverAddr)
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Printf("Error accepting: %v\n", err)
+			log.Printf("Error accepting a connection request: %v\n", err)
 			continue
 		}
+
 		go handleClient(conn)
 	}
 }
