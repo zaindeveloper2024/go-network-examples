@@ -9,13 +9,13 @@ import (
 func main() {
 	addr, err := net.ResolveUDPAddr("udp", ":8080")
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("Error resolving address: %v\n", err)
 		return
 	}
 
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("Error listening: %v\n", err)
 	}
 	defer conn.Close()
 
