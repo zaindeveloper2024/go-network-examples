@@ -1,4 +1,4 @@
-module tidy
+module app-server
 
 go 1.23.1
 

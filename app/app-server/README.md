@@ -1,25 +1,19 @@
 # app-server
 
 ```sh
-go run .
+go run cmd/server/main.go
+```
 
-# api usage
-curl -X POST -H "Content-Type: application/json" \
-  -d '{"name":"John Doe"}' \
-  http://localhost:8080/users
+## API Usage
 
-curl http://localhost:8080/users
+```sh
+http post http://localhost:8080/users name="John Doe"
 
-curl http://localhost:8080/users/user_id
+http http://localhost:8080/users
 
-curl -X PUT -H "Content-Type: application/json" \
-  -d '{"name":"John Updated"}' \
-  http://localhost:8080/users/{id}
+http http://localhost:8080/users/user_id
 
+http put http://localhost:8080/users/{id} name="John Updated"
 
-curl -X PUT -H "Content-Type: application/json" \
-  -d '{"name":"John Updated"}' \
-  http://localhost:8080/users/f5b8ba2a-7b66-43f0-8d6f-539e4398e74a
-  
 http delete http://localhost:8080/users/user_id
 ```
