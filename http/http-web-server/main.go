@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"sync"
@@ -20,15 +21,91 @@ type UserStore struct {
 	users map[string]User
 }
 
+var (
+	ErrUserNotFound = errors.New("user not found")
+	ErrInvalidInput = errors.New("invalid input")
+)
+
 type User struct {
 	ID   string `json:"id"`
-	Name string `json:"name"`
+	Name string `json:"name" validate:"required,min=2"`
+}
+
+type UserStorer interface {
 }
 
 func NewUserStore() *UserStore {
 	return &UserStore{
 		users: make(map[string]User),
 	}
+}
+
+func (us *UserStore) Get(id string) (User, error) {
+	us.RLock()
+	defer us.RUnlock()
+
+	user, exists := us.users[id]
+	if !exists {
+		return User{}, ErrUserNotFound
+	}
+	return user, nil
+}
+
+func (us *UserStore) GetAll() []User {
+	us.RLock()
+	defer us.RUnlock()
+
+	users := make([]User, 0, len(us.users))
+	for _, user := range us.users {
+		users = append(users, user)
+	}
+
+	return users
+}
+
+func (us *UserStore) Create(user User) (User, error) {
+	if user.Name == "" {
+		return User{}, ErrInvalidInput
+	}
+
+	user.ID = uuid.New().String()
+
+	us.Lock()
+	defer us.Unlock()
+	us.users[user.ID] = user
+
+	return user, nil
+}
+
+func (us *UserStore) Update(id string, user User) error {
+	if user.Name == "" {
+		return ErrInvalidInput
+	}
+
+	us.Lock()
+	defer us.Unlock()
+
+	user, exists := us.users[id]
+	if !exists {
+		return ErrUserNotFound
+	}
+	us.users[id] = user
+
+	return nil
+}
+
+func (us *UserStore) Delete(id string) error {
+	us.Lock()
+	defer us.Unlock()
+
+	_, exists := us.users[id]
+	if !exists {
+		return ErrUserNotFound
+	}
+
+	delete(us.users, id)
+
+	return nil
 }
 
 func NewServer() *Server {
@@ -55,12 +132,7 @@ func (s *Server) handleHealth() http.HandlerFunc {
 
 func (s *Server) handleUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s.userStore.RLock()
-		users := make([]User, 0, len(s.userStore.users))
-		for _, user := range s.userStore.users {
-			users = append(users, user)
-		}
-		s.userStore.RUnlock()
+		users := s.userStore.GetAll()
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(users)
