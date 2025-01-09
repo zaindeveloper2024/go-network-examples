@@ -118,10 +118,12 @@ func NewServer() *Server {
 }
 
 func (s *Server) routes() {
-	s.router.HandleFunc("/health", s.handleHealth()).Methods("GET")
-	s.router.HandleFunc("/users", s.handleUsers()).Methods("GET")
-	s.router.HandleFunc("/users", s.handleCreateUser()).Methods("POST")
-	s.router.HandleFunc("/users/{id}", s.handleGetUser()).Methods("GET")
+	s.router.HandleFunc("/health", s.handleHealth()).Methods(http.MethodGet)
+	s.router.HandleFunc("/users", s.handleGetUsers()).Methods(http.MethodGet)
+	s.router.HandleFunc("/users", s.handleCreateUser()).Methods(http.MethodPost)
+	s.router.HandleFunc("/users/{id}", s.handleGetUser()).Methods(http.MethodGet)
+	s.router.HandleFunc("/users/{id}", s.handleUpdateUser()).Methods(http.MethodPut)
+	s.router.HandleFunc("/users/{id}", s.handleDeleteUser()).Methods(http.MethodDelete)
 }
 
 func (s *Server) handleHealth() http.HandlerFunc {
@@ -130,7 +132,7 @@ func (s *Server) handleHealth() http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleUsers() http.HandlerFunc {
+func (s *Server) handleGetUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users := s.userStore.GetAll()
 
@@ -147,15 +149,15 @@ func (s *Server) handleCreateUser() http.HandlerFunc {
 			return
 		}
 
-		user.ID = uuid.New().String()
-
-		s.userStore.Lock()
-		s.userStore.users[user.ID] = user
-		s.userStore.Unlock()
+		createdUser, err := s.userStore.Create(user)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(user)
+		json.NewEncoder(w).Encode(createdUser)
 	}
 }
 
@@ -164,17 +166,53 @@ func (s *Server) handleGetUser() http.HandlerFunc {
 		vars := mux.Vars(r)
 		userID := vars["id"]
 
-		s.userStore.RLock()
-		user, exists := s.userStore.users[userID]
-		s.userStore.RUnlock()
+		user, err := s.userStore.Get(userID)
 
-		if !exists {
-			http.Error(w, "user not found", http.StatusNotFound)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(user)
+	}
+}
+
+func (s *Server) handleUpdateUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		userID := vars["id"]
+
+		var user User
+		if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := s.userStore.Update(userID, user); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNoContent)
+		json.NewEncoder(w).Encode(map[string]string{"message": "user updated"})
+	}
+}
+
+func (s *Server) handleDeleteUser() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		userID := vars["id"]
+
+		if err := s.userStore.Delete(userID); err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNoContent)
+		json.NewEncoder(w).Encode(map[string]string{"message": "user deleted"})
 	}
 }
 
