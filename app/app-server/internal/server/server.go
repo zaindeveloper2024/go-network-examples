@@ -6,19 +6,22 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/jmoiron/sqlx"
 )
 
 type Server struct {
 	router    *mux.Router
 	userStore *store.UserStore
 	config    *config.Config
+	db        *sqlx.DB
 }
 
-func NewServer(cfg *config.Config) *Server {
+func NewServer(cfg *config.Config, db *sqlx.DB) *Server {
 	s := &Server{
 		router:    mux.NewRouter(),
 		userStore: store.NewUserStore(),
 		config:    cfg,
+		db:        db,
 	}
 	s.setupRoutes()
 	return s

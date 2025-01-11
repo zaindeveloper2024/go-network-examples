@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+
 	"app-server/internal/config"
 	"app-server/internal/server"
 )
@@ -26,7 +29,13 @@ func run() error {
 		return fmt.Errorf("could not load config: %w", err)
 	}
 
-	srv := server.NewServer(cfg)
+	db, err := sqlx.Connect("postgres", cfg.Database.URL)
+	if err != nil {
+		return fmt.Errorf("could not connect to database: %w", err)
+	}
+	defer db.Close()
+
+	srv := server.NewServer(cfg, db)
 	port := fmt.Sprintf(":%d", cfg.App.Port)
 
 	httpServer := newHTTPServer(srv, port, cfg)

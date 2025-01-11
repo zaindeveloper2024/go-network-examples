@@ -9,7 +9,8 @@ import (
 )
 
 type Config struct {
-	App AppConfig
+	App      AppConfig
+	Database DatabaseConfig
 }
 
 type AppConfig struct {
@@ -18,6 +19,10 @@ type AppConfig struct {
 	ReadTimeout     int
 	WriteTimeout    int
 	ShutdownTimeout int
+}
+
+type DatabaseConfig struct {
+	URL string
 }
 
 type Environment string
@@ -29,11 +34,12 @@ const (
 )
 
 const (
-	EnvKeyPort             = "APP_PORT"
-	EnvKeyEnvironment      = "APP_ENVIRONMENT"
-	EnvKeyReadTimeout      = "APP_READ_TIMEOUT"
-	EnvKeyWriteTimeout     = "APP_WRITE_TIMEOUT"
-	EenvKeyShutdownTimeout = "APP_SHUTDOWN_TIMEOUT"
+	EnvKeyPort            = "APP_PORT"
+	EnvKeyEnvironment     = "APP_ENVIRONMENT"
+	EnvKeyReadTimeout     = "APP_READ_TIMEOUT"
+	EnvKeyWriteTimeout    = "APP_WRITE_TIMEOUT"
+	EnvKeyShutdownTimeout = "APP_SHUTDOWN_TIMEOUT"
+	EnvKeyDatabaseURL     = "DATABASE_URL"
 )
 
 const (
@@ -69,7 +75,7 @@ func loadAppConfig() (AppConfig, error) {
 		return AppConfig{}, fmt.Errorf("could not get APP_WRITE_TIMEOUT: %v", err)
 	}
 
-	shutdownTimeout, err := getEnvAsInt(EenvKeyShutdownTimeout, DefaultShutdownTimeout)
+	shutdownTimeout, err := getEnvAsInt(EnvKeyShutdownTimeout, DefaultShutdownTimeout)
 	if err != nil {
 		return AppConfig{}, fmt.Errorf("could not get APP_SHUTDOWN_TIMEOUT: %v", err)
 	}
@@ -83,6 +89,17 @@ func loadAppConfig() (AppConfig, error) {
 	}, nil
 }
 
+func loadDBConfig() (DatabaseConfig, error) {
+	databaseUrl := os.Getenv("DATABASE_URL")
+	if databaseUrl == "" {
+		return DatabaseConfig{}, fmt.Errorf("DATABASE_URL is required")
+	}
+
+	return DatabaseConfig{
+		URL: databaseUrl,
+	}, nil
+}
+
 func LoadConfig() (*Config, error) {
 	if err := loadEnvFile(); err != nil {
 		return nil, fmt.Errorf("could not load .env file: %v", err)
@@ -93,8 +110,14 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("could not load app config: %w", err)
 	}
 
+	databaseConfig, err := loadDBConfig()
+	if err != nil {
+		return nil, fmt.Errorf("could not load database config: %w", err)
+	}
+
 	return &Config{
-		App: appConfig,
+		App:      appConfig,
+		Database: databaseConfig,
 	}, nil
 }
 
