@@ -9,20 +9,25 @@ import (
 )
 
 type Config struct {
-	App      AppConfig
-	Database DatabaseConfig
+	App AppConfig
+	DB  DBConfig
 }
 
 type AppConfig struct {
 	Port            int
-	Environment     string
+	Environment     Environment
 	ReadTimeout     int
 	WriteTimeout    int
 	ShutdownTimeout int
 }
 
-type DatabaseConfig struct {
-	URL string
+type DBConfig struct {
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
 }
 
 type Environment string
@@ -39,7 +44,12 @@ const (
 	EnvKeyReadTimeout     = "APP_READ_TIMEOUT"
 	EnvKeyWriteTimeout    = "APP_WRITE_TIMEOUT"
 	EnvKeyShutdownTimeout = "APP_SHUTDOWN_TIMEOUT"
-	EnvKeyDatabaseURL     = "DATABASE_URL"
+	EnvKeyDBHost          = "DB_HOST"
+	EnvKeyDBPort          = "DB_PORT"
+	EnvKeyDBUser          = "DB_USER"
+	EnvKeyDBPassword      = "DB_PASSWORD"
+	EnvKeyDBName          = "DB_NAME"
+	EnvKeyDBSSLMode       = "DB_SSL_MODE"
 )
 
 const (
@@ -65,6 +75,11 @@ func loadAppConfig() (AppConfig, error) {
 		return AppConfig{}, fmt.Errorf("could not get APP_PORT: %v", err)
 	}
 
+	env, err := parseEnvironment(os.Getenv(EnvKeyEnvironment))
+	if err != nil {
+		return AppConfig{}, fmt.Errorf("could not get APP_ENVIRONMENT: %v", err)
+	}
+
 	readTimeout, err := getEnvAsInt(EnvKeyReadTimeout, DefaultReadTimeout)
 	if err != nil {
 		return AppConfig{}, fmt.Errorf("could not get APP_READ_TIMEOUT: %v", err)
@@ -82,21 +97,26 @@ func loadAppConfig() (AppConfig, error) {
 
 	return AppConfig{
 		Port:            port,
-		Environment:     getEnv(EnvKeyEnvironment, DefaultAppEnvironment),
+		Environment:     env,
 		ReadTimeout:     readTimeout,
 		WriteTimeout:    writeTimeout,
 		ShutdownTimeout: shutdownTimeout,
 	}, nil
 }
 
-func loadDBConfig() (DatabaseConfig, error) {
-	databaseUrl := os.Getenv("DATABASE_URL")
-	if databaseUrl == "" {
-		return DatabaseConfig{}, fmt.Errorf("DATABASE_URL is required")
+func loadDBConfig() (DBConfig, error) {
+	port, err := getEnvAsInt(EnvKeyDBPort, 5432)
+	if err != nil {
+		return DBConfig{}, fmt.Errorf("could not get DB_PORT: %v", err)
 	}
 
-	return DatabaseConfig{
-		URL: databaseUrl,
+	return DBConfig{
+		Host:     getEnv(EnvKeyDBHost, "localhost"),
+		Port:     port,
+		User:     getEnv(EnvKeyDBUser, "postgres"),
+		Password: getEnv(EnvKeyDBPassword, "password"),
+		Name:     getEnv(EnvKeyDBName, "dbname"),
+		SSLMode:  getEnv(EnvKeyDBSSLMode, "disable"),
 	}, nil
 }
 
@@ -116,8 +136,8 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		App:      appConfig,
-		Database: databaseConfig,
+		App: appConfig,
+		DB:  databaseConfig,
 	}, nil
 }
 
@@ -137,4 +157,22 @@ func getEnvAsInt(key string, defaultValue int) (int, error) {
 		return intVal, nil
 	}
 	return defaultValue, nil
+}
+
+func parseEnvironment(env string) (Environment, error) {
+	switch Environment(env) {
+	case Development, Stage, Production:
+		return Environment(env), nil
+	default:
+		return "", fmt.Errorf("invalid environment: %s", env)
+	}
+}
+
+func (c *Config) IsDevelopment() bool {
+	return c.App.Environment == Development
+}
+
+func (c *DBConfig) DNS() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		c.User, c.Password, c.Host, c.Port, c.Name, c.SSLMode)
 }

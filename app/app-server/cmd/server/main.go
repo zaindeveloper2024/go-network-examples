@@ -29,7 +29,7 @@ func run() error {
 		return fmt.Errorf("could not load config: %w", err)
 	}
 
-	db, err := sqlx.Connect("postgres", cfg.Database.URL)
+	db, err := sqlx.Connect("postgres", cfg.DB.DNS())
 	if err != nil {
 		return fmt.Errorf("could not connect to database: %w", err)
 	}

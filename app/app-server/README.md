@@ -38,4 +38,5 @@ docker stop my-postgres
 ## Migration
 
 ```sh
+golang-migrate
 ```
