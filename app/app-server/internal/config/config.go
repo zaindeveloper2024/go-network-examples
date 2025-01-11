@@ -28,7 +28,6 @@ const (
 
 func LoadConfig() (*Config, error) {
 	godotenv.Load()
-	fmt.Println("Loading .env file")
 
 	config := Config{}
 
