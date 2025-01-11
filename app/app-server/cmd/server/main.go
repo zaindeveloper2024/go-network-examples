@@ -14,8 +14,6 @@ import (
 	"app-server/internal/server"
 )
 
-const shutdownTimeout = 30 * time.Second
-
 func main() {
 	if err := run(); err != nil {
 		log.Fatalf("could not run server: %v", err)
@@ -33,7 +31,7 @@ func run() error {
 
 	httpServer := newHTTPServer(srv, port, cfg)
 
-	return serveHTTP(httpServer, port)
+	return serveHTTP(httpServer, port, cfg)
 }
 
 func newHTTPServer(srv *server.Server, port string, cfg *config.Config) *http.Server {
@@ -45,7 +43,7 @@ func newHTTPServer(srv *server.Server, port string, cfg *config.Config) *http.Se
 	}
 }
 
-func serveHTTP(httpServer *http.Server, port string) error {
+func serveHTTP(httpServer *http.Server, port string, cfg *config.Config) error {
 	errChan := make(chan error, 1)
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
@@ -61,14 +59,14 @@ func serveHTTP(httpServer *http.Server, port string) error {
 	case err := <-errChan:
 		return fmt.Errorf("could not start server: %v", err)
 	case sig := <-shutdown:
-		return gracefulShutdown(httpServer, sig)
+		return gracefulShutdown(httpServer, cfg, sig)
 	}
 }
 
-func gracefulShutdown(httpServer *http.Server, sig os.Signal) error {
+func gracefulShutdown(httpServer *http.Server, cfg *config.Config, sig os.Signal) error {
 	log.Printf("Received signal %v, initiating graceful shutdown...", sig)
 
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.App.ShutdownTimeout)*time.Second)
 	defer cancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {

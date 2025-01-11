@@ -13,47 +13,89 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Port         int
-	Environment  string
-	ReadTimeout  int
-	WriteTimeout int
+	Port            int
+	Environment     string
+	ReadTimeout     int
+	WriteTimeout    int
+	ShutdownTimeout int
 }
 
+type Environment string
+
 const (
-	DefaultAppPort        = 8080
-	DefaultAppEnvironment = "development"
-	DefaultReadTimeout    = 30
-	DefaultWriteTimeout   = 30
+	Development Environment = "development"
+	Stage       Environment = "stage"
+	Production  Environment = "production"
 )
 
+const (
+	EnvKeyPort             = "APP_PORT"
+	EnvKeyEnvironment      = "APP_ENVIRONMENT"
+	EnvKeyReadTimeout      = "APP_READ_TIMEOUT"
+	EnvKeyWriteTimeout     = "APP_WRITE_TIMEOUT"
+	EenvKeyShutdownTimeout = "APP_SHUTDOWN_TIMEOUT"
+)
+
+const (
+	DefaultAppPort         = 8080
+	DefaultAppEnvironment  = "development"
+	DefaultReadTimeout     = 30
+	DefaultWriteTimeout    = 30
+	DefaultShutdownTimeout = 30
+)
+
+func loadEnvFile() error {
+	if err := godotenv.Load(); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("could not load .env file: %v", err)
+		}
+	}
+	return nil
+}
+
+func loadAppConfig() (AppConfig, error) {
+	port, err := getEnvAsInt(EnvKeyPort, DefaultAppPort)
+	if err != nil {
+		return AppConfig{}, fmt.Errorf("could not get APP_PORT: %v", err)
+	}
+
+	readTimeout, err := getEnvAsInt(EnvKeyReadTimeout, DefaultReadTimeout)
+	if err != nil {
+		return AppConfig{}, fmt.Errorf("could not get APP_READ_TIMEOUT: %v", err)
+	}
+
+	writeTimeout, err := getEnvAsInt(EnvKeyWriteTimeout, DefaultWriteTimeout)
+	if err != nil {
+		return AppConfig{}, fmt.Errorf("could not get APP_WRITE_TIMEOUT: %v", err)
+	}
+
+	shutdownTimeout, err := getEnvAsInt(EenvKeyShutdownTimeout, DefaultShutdownTimeout)
+	if err != nil {
+		return AppConfig{}, fmt.Errorf("could not get APP_SHUTDOWN_TIMEOUT: %v", err)
+	}
+
+	return AppConfig{
+		Port:            port,
+		Environment:     getEnv(EnvKeyEnvironment, DefaultAppEnvironment),
+		ReadTimeout:     readTimeout,
+		WriteTimeout:    writeTimeout,
+		ShutdownTimeout: shutdownTimeout,
+	}, nil
+}
+
 func LoadConfig() (*Config, error) {
-	godotenv.Load()
+	if err := loadEnvFile(); err != nil {
+		return nil, fmt.Errorf("could not load .env file: %v", err)
+	}
 
-	config := Config{}
-
-	port, err := getEnvAsInt("APP_PORT", DefaultAppPort)
+	appConfig, err := loadAppConfig()
 	if err != nil {
-		return nil, fmt.Errorf("could not get PORT: %v", err)
+		return nil, fmt.Errorf("could not load app config: %w", err)
 	}
 
-	readTimeout, err := getEnvAsInt("APP_READ_TIMEOUT", DefaultReadTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("could not get READ_TIMEOUT: %v", err)
-	}
-
-	writeTimeout, err := getEnvAsInt("APP_WRITE_TIMEOUT", DefaultWriteTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("could not get WRITE_TIMEOUT: %v", err)
-	}
-
-	config.App = AppConfig{
-		Port:         port,
-		Environment:  getEnv("APP_ENVIRONMENT", DefaultAppEnvironment),
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
-	}
-
-	return &config, nil
+	return &Config{
+		App: appConfig,
+	}, nil
 }
 
 func getEnv(key, defaultValue string) string {
