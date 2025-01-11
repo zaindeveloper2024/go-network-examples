@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"app-server/internal/config"
 	"app-server/internal/server"
@@ -16,11 +21,34 @@ func main() {
 	}
 
 	srv := server.NewServer(cfg)
-
 	port := fmt.Sprintf(":%d", cfg.App.Port)
 
-	log.Printf("Server is running on port %s", port)
-	if err := http.ListenAndServe(port, srv.Router); err != nil {
-		log.Fatalf("could not start server: %v", err)
+	httpServer := &http.Server{
+		Addr:         port,
+		Handler:      srv.Router,
+		ReadTimeout:  time.Duration(cfg.App.ReadTimeout),
+		WriteTimeout: time.Duration(cfg.App.WriteTimeout),
 	}
+
+	go func() {
+		log.Printf("Server is running on port %s", port)
+		if err := httpServer.ListenAndServe(); err != nil {
+			log.Fatalf("could not start server: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := httpServer.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exiting")
 }

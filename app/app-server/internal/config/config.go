@@ -13,13 +13,17 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Port        int
-	Environment string
+	Port         int
+	Environment  string
+	ReadTimeout  int
+	WriteTimeout int
 }
 
 const (
 	DefaultAppPort        = 8080
 	DefaultAppEnvironment = "development"
+	DefaultReadTimeout    = 30
+	DefaultWriteTimeout   = 30
 )
 
 func LoadConfig() (*Config, error) {
@@ -33,9 +37,21 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("could not get PORT: %v", err)
 	}
 
+	readTimeout, err := getEnvAsInt("APP_READ_TIMEOUT", DefaultReadTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("could not get READ_TIMEOUT: %v", err)
+	}
+
+	writeTimeout, err := getEnvAsInt("APP_WRITE_TIMEOUT", DefaultWriteTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("could not get WRITE_TIMEOUT: %v", err)
+	}
+
 	config.App = AppConfig{
-		Port:        port,
-		Environment: getEnv("APP_ENVIRONMENT", DefaultAppEnvironment),
+		Port:         port,
+		Environment:  getEnv("APP_ENVIRONMENT", DefaultAppEnvironment),
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
 	}
 
 	return &config, nil
