@@ -14,6 +14,7 @@ type Server struct {
 	userStore *store.UserStore
 	config    *config.Config
 	db        *sqlx.DB
+	// logger
 }
 
 func NewServer(cfg *config.Config, db *sqlx.DB) *Server {
@@ -22,7 +23,9 @@ func NewServer(cfg *config.Config, db *sqlx.DB) *Server {
 		userStore: store.NewUserStore(),
 		config:    cfg,
 		db:        db,
+		// logger
 	}
+	// setupMiddlewares
 	s.setupRoutes()
 	return s
 }
